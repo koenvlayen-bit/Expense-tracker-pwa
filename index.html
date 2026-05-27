@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Expenses">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Travel Expense Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1e1e30;
+    --surface2: #252538;
+    --border: rgba(255,255,255,0.12);
+    --text: #ffffff;
+    --dim: rgba(255,255,255,0.55);
+    --muted: rgba(255,255,255,0.3);
+    --accent1: #667eea;
+    --accent2: #764ba2;
+    --r: 16px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body { font-family: 'DM Sans', sans-serif; color: var(--text); }
+
+  /* ── App Shell ── */
+  #app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; padding-top: var(--safe-top); }
+  .view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .view.active { display: flex; }
+  .scrollable { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .scrollable::-webkit-scrollbar { display: none; }
+
+  /* ── Header ── */
+  .home-header { background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); padding: 20px 20px 18px; flex-shrink: 0; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .greeting { font-size: 12px; font-weight: 600; color: var(--dim); letter-spacing: 0.5px; margin-bottom: 4px; }
+  h1 { font-size: 28px; font-weight: 800; }
+  .icon-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  /* ── Trip Cards ── */
+  .trips-scroll { padding: 16px 16px 80px; }
+  .trip-card { height: 180px; border-radius: 24px; margin-bottom: 12px; position: relative; overflow: hidden; cursor: pointer; }
+  .trip-card:active { transform: scale(0.98); transition: transform 0.1s; }
+  .card-bg { position: absolute; inset: 0; }
+  .card-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.75), transparent); padding: 16px; }
+  .card-name { font-size: 22px; font-weight: 800; }
+  .card-meta { display: flex; gap: 12px; margin-top: 4px; font-size: 13px; color: rgba(255,255,255,0.85); }
+  .currency-badge { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+
+  /* ── Empty ── */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px; text-align: center; color: var(--dim); }
+  .empty .e-icon { font-size: 52px; margin-bottom: 8px; }
+  .empty h3 { font-size: 18px; font-weight: 700; color: var(--text); }
+  .empty p { font-size: 14px; line-height: 1.5; }
+
+  /* ── FAB ── */
+  .fab { position: fixed; bottom: calc(24px + var(--safe-bottom)); right: 20px; width: 58px; height: 58px; background: linear-gradient(135deg, var(--accent1), var(--accent2)); border-radius: 50%; border: none; color: white; font-size: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 24px rgba(102,126,234,0.5); z-index: 10; }
+  .fab:active { transform: scale(0.92); }
+
+  /* ── Modal ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; align-items: flex-end; }
+  .modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  .modal { background: #12121f; border-radius: 28px 28px 0 0; width: 100%; max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(20px + var(--safe-bottom)); animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .modal::-webkit-scrollbar { display: none; }
+  @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+  .modal-header { background: #1a1a2e; padding: 18px 20px; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 17px; font-weight: 700; }
+  .modal-close { position: absolute; left: 16px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; }
+  .modal-body { padding: 20px; }
+
+  /* ── Forms ── */
+  .form-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; margin-bottom: 8px; display: block; }
+  .form-group { margin-bottom: 20px; }
+  .photo-upload { border: 2px dashed var(--accent1); border-radius: var(--r); height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: rgba(102,126,234,0.08); position: relative; overflow: hidden; margin-bottom: 20px; }
+  .photo-upload input { display: none; }
+  .text-input { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; width: 100%; display: flex; align-items: center; gap: 10px; }
+  .text-input input { background: none; border: none; outline: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; flex: 1; }
+  .text-input input::placeholder { color: var(--muted); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); border: none; border-radius: var(--r); padding: 16px; width: 100%; color: white; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+  .btn-primary:active { opacity: 0.85; }
+
+  /* ── Currency Select ── */
+  .currency-select { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; }
+  .currency-selected { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .cur-badge { width: 32px; height: 32px; background: rgba(102,126,234,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #a78bfa; }
+  .cur-info { flex: 1; }
+  .cur-code { font-size: 15px; font-weight: 700; }
+  .cur-name { font-size: 12px; color: var(--dim); }
+  .cur-chevron { color: var(--dim); transition: transform 0.2s; }
+  .cur-chevron.open { transform: rotate(180deg); }
+  .cur-dropdown { display: none; border-top: 1px solid var(--border); }
+  .cur-dropdown.open { display: block; }
+  .cur-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .cur-option:active { background: rgba(255,255,255,0.06); }
+  .cur-option .check { margin-left: auto; color: var(--accent1); display: none; }
+  .cur-option.selected .check { display: block; }
+
+  /* ── Trip Detail ── */
+  .trip-hero { height: 160px; position: relative; flex-shrink: 0; }
+  .hero-bg { position: absolute; inset: 0; }
+  .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,15,26,1) 0%, rgba(15,15,26,0.3) 60%, transparent); display: flex; flex-direction: column; justify-content: flex-end; padding: 16px 20px; }
+  .back-btn { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 18px; }
+  .detail-name { font-size: 26px; font-weight: 800; }
+  .total-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 20px; margin: 12px 16px 0; display: flex; justify-content: space-between; align-items: center; }
+  .total-label { font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .total-amount { font-size: 24px; font-weight: 800; }
+  .exp-count { font-size: 12px; color: var(--dim); }
+  .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; margin: 12px 16px; }
+  .tab { flex: 1; padding: 8px; border: none; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; background: none; color: var(--dim); }
+  .tab.active { background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: white; }
+
+  /* ── Expense List ── */
+  .exp-list { padding: 0 16px 80px; }
+  .exp-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .exp-item:active { background: rgba(255,255,255,0.03); }
+  .exp-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .exp-info { flex: 1; }
+  .exp-cat { font-size: 15px; font-weight: 600; }
+  .exp-note { font-size: 12px; color: var(--dim); margin-top: 1px; }
+  .exp-date { font-size: 11px; color: var(--muted); }
+  .exp-amount { font-size: 16px; font-weight: 700; }
+
+  /* ── Add Expense ── */
+  .amount-display { text-align: right; padding: 16px 20px 8px; font-size: 52px; font-weight: 800; letter-spacing: -1px; background: #12121f; }
+  .amount-display .csym { font-size: 28px; color: var(--dim); margin-right: 4px; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 16px; background: #12121f; }
+  .key { height: 56px; background: #2a2a42; border: 1px solid #3a3a58; border-radius: 14px; color: #ffffff; font-family: 'DM Sans', sans-serif; font-size: 22px; font-weight: 600; cursor: pointer; }
+  .key:active { background: #424268; transform: scale(0.94); transition: transform 0.08s; }
+  .key.del { color: rgba(255,255,255,0.8); font-size: 18px; }
+  .section-lbl { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; padding: 10px 16px 6px; background: #12121f; }
+  .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px 4px; background: #12121f; }
+  .cat-btn { background: #222235; border: 1.5px solid #333350; border-radius: 14px; padding: 10px 4px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .cat-btn:active { transform: scale(0.95); }
+  .cat-btn.sel { border-color: var(--accent1); background: rgba(102,126,234,0.22); }
+  .cat-ico { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .cat-lbl { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.8); text-align: center; }
+  .note-wrap { padding: 0 16px 8px; background: #12121f; }
+  .save-wrap { padding: 0 16px; background: #12121f; }
+
+  /* ── Stats ── */
+  .stats-list { padding: 8px 16px 80px; }
+  .stat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .stat-bar-wrap { flex: 1; }
+  .stat-name-row { font-size: 13px; font-weight: 600; margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .stat-name-row span:last-child { color: var(--dim); }
+  .bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .bar-fill { height: 6px; border-radius: 99px; }
+  .stat-pct { font-size: 12px; font-weight: 700; color: var(--dim); width: 36px; text-align: right; }
+
+  /* ── Loading / Error ── */
+  .spinner { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--accent1); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 40px auto; }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .toast { position: fixed; top: calc(20px + var(--safe-top)); left: 50%; transform: translateX(-50%); background: #1e1e30; border: 1px solid var(--border); border-radius: 12px; padding: 10px 20px; font-size: 14px; font-weight: 600; z-index: 200; animation: fadeIn 0.2s; }
+  .toast.error { border-color: #EF4444; color: #EF4444; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div class="view active" id="view-home">
+    <div class="home-header">
+      <div class="header-row">
+        <div>
+          <div class="greeting">Welcome back</div>
+          <h1>Your Trips</h1>
+        </div>
+        <button class="icon-btn" onclick="openSettings()">⚙️</button>
+      </div>
+    </div>
+    <div class="scrollable" id="home-scroll">
+      <div id="home-loading" style="display:none"><div class="spinner"></div></div>
+      <div class="trips-scroll" id="trips-list"></div>
+      <div class="empty" id="empty-state" style="display:none">
+        <div class="e-icon">✈️</div>
+        <h3>No trips yet</h3>
+        <p>Tap the + button to create your first travel expense tracker</p>
+      </div>
+    </div>
+    <button class="fab" onclick="openNewTrip()">+</button>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="view" id="view-detail">
+    <div class="trip-hero">
+      <div class="hero-bg" id="hero-bg"></div>
+      <div class="hero-overlay">
+        <button class="back-btn" onclick="goHome()">←</button>
+        <div class="detail-name" id="detail-name"></div>
+      </div>
+    </div>
+    <div class="total-card">
+      <div>
+        <div class="total-label">Total Spent</div>
+        <div class="total-amount" id="detail-total">€0.00</div>
+      </div>
+      <div class="exp-count" id="detail-count"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-exp" onclick="switchTab('expenses')">Expenses</button>
+      <button class="tab" id="tab-stats" onclick="switchTab('stats')">Statistics</button>
+    </div>
+    <div class="scrollable">
+      <div id="exp-loading" style="display:none"><div class="spinner"></div></div>
+      <div class="exp-list" id="exp-list"></div>
+      <div class="stats-list" id="stats-list" style="display:none"></div>
+    </div>
+    <button class="fab" onclick="openAddExpense()">+</button>
+  </div>
+
+  <!-- NEW TRIP MODAL -->
+  <div class="modal-overlay" id="modal-trip">
+    <div class="modal">
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-trip')">✕</button>
+        <h2>New Trip</h2>
+      </div>
+      <div class="modal-body">
+        <div class="photo-upload" onclick="document.getElementById('photo-file').click()">
+          <input type="file" id="photo-file" accept="image/*" onchange="handlePhoto(event)">
+          <img id="photo-img" src="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+          <div id="photo-ph" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="font-size:28px">📷</div>
+            <div style="font-size:14px;font-weight:600">Tap to add destination photo</div>
+            <div style="font-size:12px;color:var(--dim)">Optional but recommended</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destination Name</label>
+          <div class="text-input"><span>📍</span><input type="text" id="trip-name" placeholder="e.g., Paris, Tokyo, Barcelona..."></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Currency</label>
+          <div class="currency-select">
+            <div class="currency-selected" onclick="toggleDD('trip-dd','trip-chev')">
+              <div class="cur-badge" id="trip-sym">€</div>
+              <div class="cur-info"><div class="cur-code" id="trip-code">EUR</div><div class="cur-name" id="trip-curname">Euro</div></div>
+              <div class="cur-chevron" id="trip-chev">▾</div>
+            </div>
+            <div class="cur-dropdown" id="trip-dd"></div>
+          </div>
+        </div>
+        <button class="btn-primary" id="create-trip-btn" onclick="createTrip()">✈️ Create Trip</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD EXPENSE MODAL -->
+  <div class="modal-overlay" id="modal-expense">
+    <div class="modal">
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-expense')">✕</button>
+        <h2>Add Expense</h2>
+      </div>
+      <div class="amount-display"><span class="csym" id="exp-sym">€</span><span id="exp-amt">0</span></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="section-lbl">CATEGORY</div>
+      <div class="cat-grid" id="cat-grid"></div>
+      <div class="section-lbl">NOTE (OPTIONAL)</div>
+      <div class="note-wrap"><div class="text-input" style="background:#1e1e30"><span style="opacity:.5">📝</span><input type="text" id="exp-note" placeholder="Add a note..."></div></div>
+      <div class="save-wrap" style="padding-top:12px">
+        <button class="btn-primary" id="save-exp-btn" onclick="saveExpense()">💾 Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="modal-settings">
+    <div class="modal">
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+        <h2>Settings</h2>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Home Currency</label>
+        <div class="currency-select">
+          <div class="currency-selected" onclick="toggleDD('set-dd','set-chev')">
+            <div class="cur-badge" id="set-sym">€</div>
+            <div class="cur-info"><div class="cur-code" id="set-code">EUR</div><div class="cur-name" id="set-curname">Euro</div></div>
+            <div class="cur-chevron" id="set-chev">▾</div>
+          </div>
+          <div class="cur-dropdown" id="set-dd"></div>
+        </div>
+        <div style="margin-top:24px;font-size:13px;color:var(--dim);text-align:center">
+          Travel Expense Tracker · Data syncs via your API
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────
+// REPLACE with your Vercel API URL after deployment
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:8000'
+  : 'https://YOUR-PROJECT.vercel.app';
+
+// ── Data ───────────────────────────────────────────────
+const CURRENCIES = [
+  {code:'EUR',symbol:'€',name:'Euro'},
+  {code:'USD',symbol:'$',name:'US Dollar'},
+  {code:'GBP',symbol:'£',name:'British Pound'},
+  {code:'JPY',symbol:'¥',name:'Japanese Yen'},
+  {code:'CHF',symbol:'CHF',name:'Swiss Franc'},
+  {code:'CAD',symbol:'C$',name:'Canadian Dollar'},
+  {code:'AUD',symbol:'A$',name:'Australian Dollar'},
+  {code:'THB',symbol:'฿',name:'Thai Baht'},
+];
+const CATEGORIES = [
+  {id:'restaurant',name:'Restaurant',icon:'🍽️',color:'#EF4444',bg:'rgba(239,68,68,0.2)'},
+  {id:'transport',name:'Transport',icon:'🚗',color:'#3B82F6',bg:'rgba(59,130,246,0.2)'},
+  {id:'hotel',name:'Hotel',icon:'🏨',color:'#EC4899',bg:'rgba(236,72,153,0.2)'},
+  {id:'drinks',name:'Drinks',icon:'🍺',color:'#F59E0B',bg:'rgba(245,158,11,0.2)'},
+  {id:'shopping',name:'Shopping',icon:'🛍️',color:'#8B5CF6',bg:'rgba(139,92,246,0.2)'},
+  {id:'snacks',name:'Snacks',icon:'🍟',color:'#84CC16',bg:'rgba(132,204,22,0.2)'},
+  {id:'cash',name:'Cash',icon:'💵',color:'#10B981',bg:'rgba(16,185,129,0.2)'},
+  {id:'tips',name:'Tips',icon:'💝',color:'#D946EF',bg:'rgba(217,70,239,0.2)'},
+  {id:'fuel',name:'Fuel',icon:'⛽',color:'#78716C',bg:'rgba(120,113,108,0.25)'},
+];
+const GRADS = [
+  ['#667eea','#764ba2'],['#f093fb','#f5576c'],['#4facfe','#00f2fe'],
+  ['#43e97b','#38f9d7'],['#fa709a','#fee140'],['#a18cd1','#fbc2eb'],
+  ['#fda085','#f6d365'],['#89f7fe','#66a6ff'],
+];
+
+let S = {
+  trips: [],
+  homeCurrency: localStorage.getItem('homeCurrency') || 'EUR',
+  currentTripId: null,
+  newTripCurrency: 'EUR',
+  selectedCategory: null,
+  amountStr: '0',
+  photoBase64: null,
+  activeTab: 'expenses',
+};
+
+const getCur = c => CURRENCIES.find(x=>x.code===c)||CURRENCIES[0];
+const getCat = c => CATEGORIES.find(x=>x.id===c)||CATEGORIES[0];
+const fmt = (amt,code) => { const c=getCur(code); return code==='JPY'?c.symbol+Math.round(amt).toLocaleString():c.symbol+Number(amt).toFixed(2); };
+
+// ── API helpers ────────────────────────────────────────
+async function apiFetch(path, opts={}) {
+  try {
+    const res = await fetch(API + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  } catch(e) {
+    showToast('Network error — check connection', true);
+    throw e;
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isError=false) {
+  clearTimeout(toastTimer);
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.className = 'toast' + (isError?' error':'');
+  t.textContent = msg;
+  t.style.display = 'block';
+  toastTimer = setTimeout(()=>t.style.display='none', 2500);
+}
+
+// ── Home ───────────────────────────────────────────────
+async function renderHome() {
+  document.getElementById('home-loading').style.display='block';
+  document.getElementById('trips-list').innerHTML='';
+  document.getElementById('empty-state').style.display='none';
+  try {
+    S.trips = await apiFetch('/api/trips');
+  } catch(e) { document.getElementById('home-loading').style.display='none'; return; }
+  document.getElementById('home-loading').style.display='none';
+  const list = document.getElementById('trips-list');
+  if (!S.trips.length) { document.getElementById('empty-state').style.display='flex'; return; }
+  S.trips.forEach((trip,idx) => {
+    const g = GRADS[idx%GRADS.length];
+    const bgStyle = trip.photo ? `background:url('${trip.photo}') center/cover` : `background:linear-gradient(135deg,${g[0]},${g[1]})`;
+    const card = document.createElement('div'); card.className='trip-card';
+    card.onclick = () => openDetail(trip.id);
+    card.innerHTML = `<div class="card-bg" style="${bgStyle}"></div><div class="card-overlay"><div class="card-name">${trip.name}</div><div class="card-meta"><span>🗂️ ${fmt(trip.total_spent||0,trip.currency)}</span><span>📋 ${trip.expense_count||0} expense${trip.expense_count!==1?'s':''}</span></div></div><div class="currency-badge">${trip.currency}</div>`;
+    list.appendChild(card);
+  });
+}
+
+// ── New Trip ───────────────────────────────────────────
+function openNewTrip() {
+  S.photoBase64=null; S.newTripCurrency=S.homeCurrency;
+  document.getElementById('trip-name').value='';
+  document.getElementById('photo-img').style.display='none';
+  document.getElementById('photo-ph').style.display='flex';
+  renderDD('trip-dd', S.newTripCurrency, code=>{
+    S.newTripCurrency=code; updateCurDisplay('trip-sym','trip-code','trip-curname',code);
+    closeDD('trip-dd','trip-chev');
+    renderDD('trip-dd',code,arguments.callee);
+  });
+  updateCurDisplay('trip-sym','trip-code','trip-curname',S.newTripCurrency);
+  openModal('modal-trip');
+}
+function handlePhoto(e) {
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=ev=>{
+    S.photoBase64=ev.target.result;
+    document.getElementById('photo-img').src=ev.target.result;
+    document.getElementById('photo-img').style.display='block';
+    document.getElementById('photo-ph').style.display='none';
+  }; r.readAsDataURL(f);
+}
+async function createTrip() {
+  const name=document.getElementById('trip-name').value.trim();
+  if(!name){document.getElementById('trip-name').focus();return;}
+  const btn=document.getElementById('create-trip-btn');
+  btn.textContent='Creating...'; btn.disabled=true;
+  try {
+    await apiFetch('/api/trips',{method:'POST',body:{name,currency:S.newTripCurrency,photo:S.photoBase64||null}});
+    closeModal('modal-trip'); renderHome(); showToast('Trip created!');
+  } finally { btn.innerHTML='✈️ Create Trip'; btn.disabled=false; }
+}
+
+// ── Detail ─────────────────────────────────────────────
+async function openDetail(tripId) {
+  S.currentTripId=tripId; S.activeTab='expenses';
+  const trip=S.trips.find(t=>t.id===tripId), idx=S.trips.indexOf(trip);
+  const g=GRADS[idx%GRADS.length];
+  const bg=document.getElementById('hero-bg');
+  bg.style.background=trip.photo?`url('${trip.photo}') center/cover`:`linear-gradient(135deg,${g[0]},${g[1]})`;
+  document.getElementById('detail-name').textContent=trip.name;
+  switchView('view-detail');
+  await refreshDetail();
+}
+async function refreshDetail() {
+  const trip=S.trips.find(t=>t.id===S.currentTripId);
+  document.getElementById('tab-exp').className='tab'+(S.activeTab==='expenses'?' active':'');
+  document.getElementById('tab-stats').className='tab'+(S.activeTab==='stats'?' active':'');
+  document.getElementById('exp-loading').style.display='block';
+  document.getElementById('exp-list').innerHTML='';
+  document.getElementById('stats-list').innerHTML='';
+  try {
+    const exps=await apiFetch(`/api/expenses?trip_id=${S.currentTripId}`);
+    const total=exps.reduce((s,e)=>s+Number(e.amount),0);
+    document.getElementById('detail-total').textContent=fmt(total,trip.currency);
+    document.getElementById('detail-count').textContent=`${exps.length} expense${exps.length!==1?'s':''}`;
+    document.getElementById('exp-loading').style.display='none';
+    if(S.activeTab==='expenses'){
+      document.getElementById('exp-list').style.display='block';
+      document.getElementById('stats-list').style.display='none';
+      renderExpList(exps,trip.currency);
+    } else {
+      document.getElementById('exp-list').style.display='none';
+      document.getElementById('stats-list').style.display='block';
+      renderStats(exps,trip.currency);
+    }
+    // Update cached totals
+    trip.total_spent=total; trip.expense_count=exps.length;
+  } catch(e){ document.getElementById('exp-loading').style.display='none'; }
+}
+function renderExpList(exps,currency){
+  const list=document.getElementById('exp-list');
+  if(!exps.length){list.innerHTML=`<div style="padding:40px 0;text-align:center;color:var(--dim)"><div style="font-size:36px;margin-bottom:8px">💸</div><div style="font-size:15px;font-weight:600;color:#fff">No expenses yet</div><div style="font-size:13px;margin-top:4px">Tap + to add your first expense</div></div>`;return;}
+  list.innerHTML='';
+  exps.forEach(exp=>{
+    const cat=getCat(exp.category), div=document.createElement('div'); div.className='exp-item';
+    div.innerHTML=`<div class="exp-icon" style="background:${cat.bg}">${cat.icon}</div><div class="exp-info"><div class="exp-cat">${cat.name}</div>${exp.note?`<div class="exp-note">${exp.note}</div>`:''}<div class="exp-date">${exp.date}</div></div><div class="exp-amount">${fmt(Number(exp.amount),currency)}</div>`;
+    div.onclick=async()=>{
+      if(!confirm(`Delete ${cat.name} (${fmt(Number(exp.amount),currency)})?`)) return;
+      await apiFetch(`/api/expenses/${exp.id}`,{method:'DELETE'});
+      showToast('Deleted'); refreshDetail();
+    };
+    list.appendChild(div);
+  });
+}
+function renderStats(exps,currency){
+  const list=document.getElementById('stats-list');
+  if(!exps.length){list.innerHTML=`<div style="padding:40px 0;text-align:center;color:var(--dim)"><div style="font-size:36px;margin-bottom:8px">📊</div><div style="font-size:15px;font-weight:600;color:#fff">No data yet</div></div>`;return;}
+  const total=exps.reduce((s,e)=>s+Number(e.amount),0), bycat={};
+  exps.forEach(e=>{bycat[e.category]=(bycat[e.category]||0)+Number(e.amount);});
+  Object.entries(bycat).sort((a,b)=>b[1]-a[1]).forEach(([catId,amt])=>{
+    const cat=getCat(catId), pct=Math.round((amt/total)*100), div=document.createElement('div'); div.className='stat-row';
+    div.innerHTML=`<div class="exp-icon" style="background:${cat.bg};width:38px;height:38px;border-radius:10px;flex-shrink:0">${cat.icon}</div><div class="stat-bar-wrap"><div class="stat-name-row"><span>${cat.name}</span><span>${fmt(amt,currency)}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${cat.color}"></div></div></div><div class="stat-pct">${pct}%</div>`;
+    list.appendChild(div);
+  });
+}
+function switchTab(t){S.activeTab=t;refreshDetail();}
+function goHome(){switchView('view-home');renderHome();}
+
+// ── Add Expense ────────────────────────────────────────
+function openAddExpense(){
+  S.amountStr='0'; S.selectedCategory=null;
+  document.getElementById('exp-note').value='';
+  const trip=S.trips.find(t=>t.id===S.currentTripId);
+  document.getElementById('exp-sym').textContent=getCur(trip.currency).symbol;
+  document.getElementById('exp-amt').textContent='0';
+  renderKeypad(); renderCatGrid();
+  openModal('modal-expense');
+}
+function renderKeypad(){
+  const kp=document.getElementById('keypad'); kp.innerHTML='';
+  ['1','2','3','4','5','6','7','8','9','.','0','⌫'].forEach(k=>{
+    const b=document.createElement('button'); b.className='key'+(k==='⌫'?' del':'');
+    b.textContent=k; b.onclick=()=>handleKey(k); kp.appendChild(b);
+  });
+}
+function handleKey(k){
+  if(k==='⌫')S.amountStr=S.amountStr.length>1?S.amountStr.slice(0,-1):'0';
+  else if(k==='.')S.amountStr.includes('.')||(S.amountStr+='.');
+  else{
+    if(S.amountStr==='0')S.amountStr=k;
+    else if(S.amountStr.includes('.')&&S.amountStr.split('.')[1].length>=2)return;
+    else S.amountStr+=k;
+    if(S.amountStr.length>9)S.amountStr=S.amountStr.slice(0,-1);
+  }
+  document.getElementById('exp-amt').textContent=S.amountStr;
+}
+function renderCatGrid(){
+  const g=document.getElementById('cat-grid'); g.innerHTML='';
+  CATEGORIES.forEach(cat=>{
+    const b=document.createElement('button'); b.className='cat-btn';
+    b.innerHTML=`<div class="cat-ico" style="background:${cat.bg}">${cat.icon}</div><div class="cat-lbl">${cat.name}</div>`;
+    b.onclick=()=>{S.selectedCategory=cat.id;document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');};
+    g.appendChild(b);
+  });
+}
+async function saveExpense(){
+  const amount=parseFloat(S.amountStr);
+  if(!amount||amount<=0){showToast('Enter an amount',true);return;}
+  if(!S.selectedCategory){showToast('Pick a category',true);return;}
+  const btn=document.getElementById('save-exp-btn');
+  btn.textContent='Saving...'; btn.disabled=true;
+  try {
+    await apiFetch('/api/expenses',{method:'POST',body:{
+      trip_id:S.currentTripId,amount,category:S.selectedCategory,
+      date:new Date().toISOString().split('T')[0],
+      note:document.getElementById('exp-note').value.trim()
+    }});
+    closeModal('modal-expense'); showToast('Expense saved!'); refreshDetail();
+  } finally { btn.innerHTML='💾 Save Expense'; btn.disabled=false; }
+}
+
+// ── Settings ───────────────────────────────────────────
+function openSettings(){
+  updateCurDisplay('set-sym','set-code','set-curname',S.homeCurrency);
+  renderDD('set-dd',S.homeCurrency,code=>{
+    S.homeCurrency=code; localStorage.setItem('homeCurrency',code);
+    updateCurDisplay('set-sym','set-code','set-curname',code);
+    closeDD('set-dd','set-chev');
+    renderDD('set-dd',code,arguments.callee);
+  });
+  openModal('modal-settings');
+}
+
+// ── Currency helpers ───────────────────────────────────
+function renderDD(ddId, selected, onSelect){
+  const c=document.getElementById(ddId); c.innerHTML='';
+  CURRENCIES.forEach(cur=>{
+    const d=document.createElement('div'); d.className='cur-option'+(cur.code===selected?' selected':'');
+    d.innerHTML=`<div class="cur-badge">${cur.symbol}</div><div class="cur-info"><div class="cur-code">${cur.code}</div><div class="cur-name">${cur.name}</div></div><span class="check">✓</span>`;
+    d.onclick=()=>onSelect(cur.code); c.appendChild(d);
+  });
+}
+function toggleDD(ddId,chevId){
+  document.getElementById(ddId).classList.toggle('open');
+  document.getElementById(chevId).classList.toggle('open');
+}
+function closeDD(ddId,chevId){
+  document.getElementById(ddId).classList.remove('open');
+  document.getElementById(chevId).classList.remove('open');
+}
+function updateCurDisplay(symId,codeId,nameId,code){
+  const c=getCur(code);
+  document.getElementById(symId).textContent=c.symbol;
+  document.getElementById(codeId).textContent=c.code;
+  document.getElementById(nameId).textContent=c.name;
+}
+
+// ── Modal / View helpers ───────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function switchView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ── Service Worker ─────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+
+// ── Init ───────────────────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
