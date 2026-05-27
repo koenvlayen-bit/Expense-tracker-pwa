@@ -169,6 +169,7 @@
   .hero-bg { position: absolute; inset: 0; }
   .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.2) 60%, transparent); display: flex; flex-direction: column; justify-content: flex-end; padding: 16px 20px; }
   .back-btn { position: absolute; top: 16px; left: 16px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 18px; }
+  .delete-trip-btn { position: absolute; top: 16px; right: 16px; background: rgba(239,68,68,0.2); backdrop-filter: blur(8px); border: 1px solid rgba(239,68,68,0.4); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 16px; }
   .detail-name { font-size: 24px; font-weight: 700; color: white; }
 
   /* Budget card in detail */
@@ -273,6 +274,7 @@
       <div class="hero-bg" id="hero-bg"></div>
       <div class="hero-overlay">
         <button class="back-btn" onclick="goHome()">←</button>
+        <button class="delete-trip-btn" onclick="deleteTrip()">🗑️</button>
         <div class="detail-name" id="detail-name"></div>
       </div>
     </div>
@@ -664,6 +666,15 @@ function renderStats(exps,currency){
   });
 }
 function switchTab(t){S.activeTab=t;refreshDetail();}
+async function deleteTrip(){
+  const trip=S.trips.find(t=>t.id===S.currentTripId);
+  if(!confirm('Delete "'+trip.name+'" and all its expenses? This cannot be undone.')) return;
+  try{
+    await apiFetch('/api/trips/'+S.currentTripId,{method:'DELETE'});
+    showToast('Trip deleted');
+    goHome();
+  } catch(e){}
+}
 function goHome(){switchView('view-home');renderHome();}
 
 // ── ADD EXPENSE ────────────────────────────────────────
