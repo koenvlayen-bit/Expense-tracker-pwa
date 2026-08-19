@@ -169,6 +169,7 @@
   .hero-bg { position: absolute; inset: 0; }
   .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.2) 60%, transparent); display: flex; flex-direction: column; justify-content: flex-end; padding: 16px 20px; }
   .back-btn { position: absolute; top: 16px; left: 16px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 18px; }
+  .edit-budget-btn { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: var(--teal2); cursor: pointer; margin-top: 8px; display: inline-block; }
   .delete-trip-btn { position: absolute; top: 16px; right: 16px; background: rgba(239,68,68,0.2); backdrop-filter: blur(8px); border: 1px solid rgba(239,68,68,0.4); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 16px; }
   .detail-name { font-size: 24px; font-weight: 700; color: white; }
 
@@ -297,6 +298,7 @@
         <span id="budget-spent-lbl">€0 spent</span>
         <span id="budget-pct-lbl">0% used</span>
       </div>
+      <div style="text-align:right;margin-top:6px"><button class="edit-budget-btn" onclick="openEditBudget()">✏️ Edit budget</button></div>
     </div>
     <!-- Total card (shown when no budget) -->
     <div id="total-card" class="total-card">
@@ -304,7 +306,10 @@
         <div class="total-label">Total Spent</div>
         <div class="total-amount" id="detail-total">€0.00</div>
       </div>
-      <div class="exp-count" id="detail-count"></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="exp-count" id="detail-count"></div>
+        <button class="edit-budget-btn" style="background:rgba(20,184,166,0.1);border:1px solid rgba(20,184,166,0.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--teal-dk);cursor:pointer" onclick="openEditBudget()">+ Add budget</button>
+      </div>
     </div>
     <div class="tabs">
       <button class="tab active" id="tab-exp" onclick="switchTab('expenses')">Expenses</button>
@@ -385,6 +390,23 @@
       <div class="note-wrap"><div class="text-input"><span style="opacity:.4;font-size:15px">📝</span><input type="text" id="exp-note" placeholder="Add a note..."></div></div>
       <div class="save-wrap" style="padding-top:12px">
         <button class="btn-primary" id="save-exp-btn" onclick="saveExpense()">💾 Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT BUDGET MODAL -->
+  <div class="modal-overlay" id="modal-budget">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-budget')">✕</button>
+        <h2>Edit Budget</h2>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Budget Amount</label>
+        <div class="text-input"><span style="font-size:16px">💰</span><input type="number" id="edit-budget-amount" placeholder="e.g., 1500" min="0" inputmode="decimal"></div>
+        <div style="font-size:12px;color:var(--dim);margin:-8px 0 16px">Set to 0 to remove the budget</div>
+        <button class="btn-primary" id="save-budget-btn" onclick="saveBudget()">💾 Save Budget</button>
       </div>
     </div>
   </div>
@@ -561,12 +583,25 @@ function openNewTrip(){
 }
 function handlePhoto(e){
   const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader(); r.onload=ev=>{
-    S.photoBase64=ev.target.result;
-    document.getElementById('photo-img').src=ev.target.result;
+  const img=new Image();
+  const url=URL.createObjectURL(f);
+  img.onload=()=>{
+    // Compress: max 800px, 0.7 quality
+    const MAX=800;
+    let w=img.width, h=img.height;
+    if(w>h){ if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} }
+    else { if(h>MAX){w=Math.round(w*MAX/h);h=MAX;} }
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    const compressed=canvas.toDataURL('image/jpeg',0.7);
+    S.photoBase64=compressed;
+    document.getElementById('photo-img').src=compressed;
     document.getElementById('photo-img').style.display='block';
     document.getElementById('photo-ph').style.display='none';
-  }; r.readAsDataURL(f);
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
 }
 async function createTrip(){
   const name=document.getElementById('trip-name').value.trim();
@@ -764,6 +799,26 @@ function updateCurDisplay(symId,codeId,nameId,code){
   document.getElementById(symId).textContent=c.symbol;
   document.getElementById(codeId).textContent=c.code;
   document.getElementById(nameId).textContent=c.name;
+}
+
+// ── EDIT BUDGET ───────────────────────────────────────
+function openEditBudget(){
+  const trip=S.trips.find(t=>t.id===S.currentTripId);
+  document.getElementById('edit-budget-amount').value=trip.budget||'';
+  openModal('modal-budget');
+}
+async function saveBudget(){
+  const val=parseFloat(document.getElementById('edit-budget-amount').value)||0;
+  const btn=document.getElementById('save-budget-btn');
+  btn.textContent='Saving...'; btn.disabled=true;
+  try{
+    await apiFetch('/api/trips/'+S.currentTripId+'/budget',{method:'PATCH',body:{budget:val>0?val:null}});
+    const trip=S.trips.find(t=>t.id===S.currentTripId);
+    trip.budget=val>0?val:null;
+    closeModal('modal-budget');
+    showToast('Budget updated!');
+    refreshDetail();
+  } finally{ btn.innerHTML='💾 Save Budget'; btn.disabled=false; }
 }
 
 // ── HELPERS ────────────────────────────────────────────
