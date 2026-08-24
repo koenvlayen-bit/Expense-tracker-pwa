@@ -570,7 +570,7 @@ async function renderHome() {
   document.getElementById('home-loading').style.display='block';
   document.getElementById('trips-list').innerHTML='';
   document.getElementById('empty-state').style.display='none';
-  try { S.trips=await apiFetch('/api/trips'); }
+  try { S.trips=await apiFetch('/api/trips?user_code='+encodeURIComponent(getUserCode())); }
   catch(e){ document.getElementById('home-loading').style.display='none'; return; }
   document.getElementById('home-loading').style.display='none';
   const list=document.getElementById('trips-list');
