@@ -894,7 +894,9 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catc
 const urlParams = new URLSearchParams(window.location.search);
 const sharedTripId = urlParams.get('trip');
 
-if (!getUserCode()) {
+const code = getUserCode();
+if (!code || code.trim() === '' || code === 'null' || code === 'undefined') {
+  localStorage.removeItem('triply_user_code'); // clean up bad values
   document.getElementById('setup-screen').style.display = 'flex';
 } else if (sharedTripId) {
   // Open shared trip directly
