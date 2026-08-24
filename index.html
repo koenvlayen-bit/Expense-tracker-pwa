@@ -233,6 +233,21 @@
   .stat-pct { font-size: 12px; font-weight: 700; color: var(--teal-dk); width: 36px; text-align: right; }
 
   /* ── LOADING ── */
+  /* ── SETUP SCREEN ── */
+  .setup-screen { position: fixed; inset: 0; background: linear-gradient(135deg, #0f172a 0%, #0f2a2a 60%, #0f766e 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 32px; z-index: 500; }
+  .setup-logo { font-size: 72px; margin-bottom: 8px; }
+  .setup-title { font-size: 36px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .setup-sub { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 48px; letter-spacing: 2px; text-transform: uppercase; }
+  .setup-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; align-self: flex-start; width: 100%; }
+  .setup-input { width: 100%; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 16px 20px; color: white; font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 600; outline: none; text-align: center; letter-spacing: 2px; margin-bottom: 12px; }
+  .setup-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 1px; font-size: 15px; }
+  .setup-hint { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 32px; text-align: center; line-height: 1.6; }
+  .setup-btn { width: 100%; background: linear-gradient(135deg, #14b8a6, #0f766e); border: none; border-radius: 16px; padding: 16px; color: white; font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 24px rgba(20,184,166,0.4); }
+  .setup-btn:active { opacity: 0.88; transform: scale(0.98); }
+
+  /* ── SHARE TRIP ── */
+  .share-btn { background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: var(--teal-dk); cursor: pointer; }
+
   .spinner { width: 28px; height: 28px; border: 3px solid rgba(20,184,166,0.2); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 40px auto; }
   @keyframes spin { to { transform: rotate(360deg) } }
 
@@ -243,6 +258,17 @@
 </style>
 </head>
 <body>
+<!-- SETUP SCREEN -->
+<div id="setup-screen" class="setup-screen" style="display:none">
+  <div class="setup-logo">🌴</div>
+  <div class="setup-title">Triply</div>
+  <div class="setup-sub">Expense Tracker</div>
+  <div class="setup-label">Choose your personal code</div>
+  <input class="setup-input" id="setup-code-input" type="text" placeholder="e.g. koen123" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off">
+  <div class="setup-hint">This code identifies you in the app.<br>Write it down — you'll need it on other devices.</div>
+  <button class="setup-btn" onclick="saveUserCode()">Get Started ✈️</button>
+</div>
+
 <div id="app">
 
   <!-- HOME -->
@@ -307,7 +333,10 @@
         <div class="total-amount" id="detail-total">€0.00</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <div class="exp-count" id="detail-count"></div>
+        <button class="share-btn" onclick="shareTrip()">🔗 Share trip</button>
+      </div>
         <button class="edit-budget-btn" style="background:rgba(20,184,166,0.1);border:1px solid rgba(20,184,166,0.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--teal-dk);cursor:pointer" onclick="openEditBudget()">+ Add budget</button>
       </div>
     </div>
@@ -429,10 +458,16 @@
           </div>
           <div class="cur-dropdown" id="set-dd"></div>
         </div>
-        <div style="margin-top:28px;text-align:center">
-          <div style="font-size:32px;margin-bottom:8px">🌴</div>
-          <div style="font-size:16px;font-weight:700;color:var(--navy)">Triply</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:2px">Track expenses. Enjoy the journey.</div>
+        <div style="margin-top:24px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:var(--r);padding:14px 16px">
+          <div style="font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px">Your Code</div>
+          <div style="font-size:20px;font-weight:700;color:var(--navy);letter-spacing:2px" id="display-user-code">—</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:4px">Share this code to access your trips on another device</div>
+        </div>
+        <button onclick="resetUserCode()" style="margin-top:12px;width:100%;background:none;border:1.5px solid #fee2e2;border-radius:var(--r);padding:12px;color:#ef4444;font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Change code / Switch account</button>
+        <div style="margin-top:20px;text-align:center">
+          <div style="font-size:24px;margin-bottom:4px">🌴</div>
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Triply</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">Track expenses. Enjoy the journey.</div>
         </div>
       </div>
     </div>
@@ -444,6 +479,30 @@
 const API = window.location.hostname === 'localhost'
   ? 'http://localhost:8000'
   : 'https://expense-tracker-api-hazel-theta.vercel.app';
+
+// ── User Code ──────────────────────────────────────────
+function getUserCode() { return localStorage.getItem('triply_user_code'); }
+function saveUserCode() {
+  const code = document.getElementById('setup-code-input').value.trim().toLowerCase();
+  if (!code || code.length < 3) { showToast('Kies een code van minstens 3 tekens', true); return; }
+  localStorage.setItem('triply_user_code', code);
+  document.getElementById('setup-screen').style.display = 'none';
+  renderHome();
+}
+function resetUserCode() {
+  if (!confirm('Ben je zeker? Je verliest toegang tot je huidige trips tenzij je de code opnieuw ingeeft.')) return;
+  localStorage.removeItem('triply_user_code');
+  location.reload();
+}
+function shareTrip() {
+  const trip = S.trips.find(t => t.id === S.currentTripId);
+  const url = window.location.origin + '?trip=' + S.currentTripId;
+  if (navigator.share) {
+    navigator.share({ title: 'Triply — ' + trip.name, text: 'Voeg expenses toe aan onze reis ' + trip.name, url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => showToast('Link gekopieerd! 🔗'));
+  }
+}
 
 const CURRENCIES = [
   {code:'EUR',symbol:'€',name:'Euro'},
@@ -610,7 +669,7 @@ async function createTrip(){
   const btn=document.getElementById('create-trip-btn');
   btn.textContent='Creating...'; btn.disabled=true;
   try{
-    await apiFetch('/api/trips',{method:'POST',body:{name,currency:S.newTripCurrency,photo:S.photoBase64||null,budget}});
+    await apiFetch('/api/trips',{method:'POST',body:{name,currency:S.newTripCurrency,photo:S.photoBase64||null,budget,user_code:getUserCode()}});
     closeModal('modal-trip'); renderHome(); showToast('Trip created! ✈️');
   } finally{ btn.innerHTML='✈️ Create Trip'; btn.disabled=false; }
 }
@@ -767,6 +826,8 @@ async function saveExpense(){
 
 // ── SETTINGS ───────────────────────────────────────────
 function openSettings(){
+  const el = document.getElementById('display-user-code');
+  if (el) el.textContent = getUserCode() || '—';
   updateCurDisplay('set-sym','set-code','set-curname',S.homeCurrency);
   renderDD('set-dd',S.homeCurrency,code=>{
     S.homeCurrency=code; localStorage.setItem('homeCurrency',code);
@@ -829,7 +890,27 @@ document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
-renderHome();
+// Check for shared trip link
+const urlParams = new URLSearchParams(window.location.search);
+const sharedTripId = urlParams.get('trip');
+
+if (!getUserCode()) {
+  document.getElementById('setup-screen').style.display = 'flex';
+} else if (sharedTripId) {
+  // Open shared trip directly
+  renderHome().then(() => {
+    const trip = S.trips.find(t => t.id === sharedTripId);
+    if (trip) openDetail(sharedTripId);
+    else {
+      // Trip not in user's list — load it directly
+      apiFetch('/api/trips/' + sharedTripId).then(t => {
+        S.trips.push(t); openDetail(sharedTripId);
+      }).catch(() => renderHome());
+    }
+  });
+} else {
+  renderHome();
+}
 </script>
 </body>
 </html>
